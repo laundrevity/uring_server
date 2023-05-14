@@ -1,23 +1,26 @@
-Why isn't our main.py working? It should run the server and the clients with the specified arguments and log their stdout/stderr, but it is hanging indefinitely when I uncomment the line run_server_and_client()
+conor@oswald ~/g/uring_server (master)> python3 main.py server client]
+[master 86d767f] Update main.py, server.cpp, client.cpp, CMakeLists.txt, prompt.txt (automated commit)
+ 1 file changed, 22 insertions(+), 10 deletions(-)
+Enumerating objects: 5, done.
+Counting objects: 100% (5/5), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (3/3), done.
+Writing objects: 100% (3/3), 652 bytes | 652.00 KiB/s, done.
+Total 3 (delta 2), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (2/2), completed with 2 local objects.
+To github.com:laundrevity/uring_server.git
+   abc716a..86d767f  master -> master
+/home/conor/git/uring_server
+Traceback (most recent call last):
+  File "/home/conor/git/uring_server/main.py", line 150, in <module>
+    asyncio.create_task(run_server_and_client())
+  File "/usr/lib/python3.10/asyncio/tasks.py", line 336, in create_task
+    loop = events.get_running_loop()
+RuntimeError: no running event loop
+sys:1: RuntimeWarning: coroutine 'run_server_and_client' was never awaited
 
-When I build the binaries and run them with those arguments myself, it works fine. What is the problem? Recall this is our current run_server_and_client:
-def run_server_and_client():
-    server_command = ["./build/server", "1234"]
-    client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
 
-    server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    
-    # Give the server some time to start properly
-    time.sleep(2)
-    
-    client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    client_stdout, client_stderr = client_process.communicate()
-    server_stdout, server_stderr = server_process.communicate()
-
-    server_output_msg = f"stdout:\n{server_stdout}\nstderr:\n{server_stderr}"
-    client_output_msg = f"stdout:\n{client_stdout}\nstderr:\n{client_stderr}"
-
-    command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
-    write_state_file(True, server_output_msg, client_output_msg, command)
- 
+How can we fix this? We want main.py to --
+1. build the server and client (working already)
+2. run the server and client with asyncio, and wait until client process completes (not working)
+3. if extra arg is given, stream response from gpt4 with prompt including state.txt and prompt.txt (working already)
