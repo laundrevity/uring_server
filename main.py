@@ -88,7 +88,7 @@ def write_source_code():
     file_candidates = os.listdir('.') + [os.path.join(script_folder_path, '.github/workflows/main.yml')]
     
     for file_name in file_candidates:
-        if file_name.endswith('.py') or file_name.endswith('CMakeLists.txt') or file_name.endswith('cpp') or file_name.endswith('.yml'):
+        if file_name.endswith('.py') or file_name.endswith('CMakeLists.txt') or file_name.endswith('cpp') or file_name.endswith('.yml') or file_name.endswith('requirements.txt'):
             state_content += f"--- {file_name} ---\n"
             state_content += get_file_content(file_name)
             state_content += "\n\n"
