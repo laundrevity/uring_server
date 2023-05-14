@@ -136,6 +136,10 @@ def build() -> bool:
         write_state_file(False, f"Traceback:\n{formatted_traceback}", "", command)
         return False
 
+async def main_async():
+    if build():
+        await run_server_and_client()
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(f"Usage: python main.py <server-binary> <client-binary> [--send]")
@@ -146,10 +150,7 @@ if __name__ == '__main__':
     else:
         send_gpt4 = False
 
-    if build():
-        # this line causes the crash described in prompt.txt
-        # asyncio.create_task(run_server_and_client())
-        pass
+    asyncio.run(main_async())
 
     if send_gpt4:
         os.chdir("/home/conor/git/uring_server")
