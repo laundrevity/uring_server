@@ -6,6 +6,7 @@ import traceback
 import openai
 import shutil
 import glob
+import time
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 
@@ -76,6 +77,10 @@ def run_server_and_client():
     client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
 
     server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    # Give the server some time to start properly
+    time.sleep(2)
+    
     client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     client_stdout, client_stderr = client_process.communicate()
@@ -109,9 +114,9 @@ def build():
         if build_successful:
             git_push(True)
             archive_responses()
-            # run_server_and_client()
-
-        write_state_file(build_successful, server_output_msg, client_output_msg, command)
+            run_server_and_client()
+        else:
+            write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
     except Exception as e:
         print(f"Error: {e}")
