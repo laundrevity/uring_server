@@ -17,7 +17,7 @@ for i in range(num_clients):
         all_latencies[i] = latencies
 
 def plot_histogram(data, title, xlabel, ylabel, filename):
-    plt.hist(data, bins='auto', edgecolor='black', alpha=0.7)
+    plt.hist(data, bins='auto', edgecolor='black', alpha=0.7, density=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
@@ -32,9 +32,9 @@ percentile_99_99_latencies = [np.percentile(np.array(all_latencies[i]), 99.99) f
 min_latencies = [np.min(np.array(all_latencies[i])) for i in all_latencies]
 max_latencies = [np.max(np.array(all_latencies[i])) for i in all_latencies]
 
-plot_histogram(median_latencies, "Median Latency Histogram", "Latency (ms)", "Frequency", "median_hist.png")
-plot_histogram(mean_latencies, "Mean Latency Histogram", "Latency (ms)", "Frequency", "mean_hist.png")
-plot_histogram(stdev_latencies, "Standard Deviation Latency Histogram", "Latency (ms)", "Frequency", "stdev_hist.png")
-plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram", "Latency (ms)", "Frequency", "percentile_99_99_hist.png")
-plot_histogram(min_latencies, "Minimum Latency Histogram", "Latency (ms)", "Frequency", "min_hist.png")
-plot_histogram(max_latencies, "Maximum Latency Histogram", "Latency (ms)", "Frequency", "max_hist.png")
+plot_histogram(median_latencies, "Median Latency Histogram", r"Latency ($\mu$s)", "Frequency", "median_hist.png")
+plot_histogram(mean_latencies, "Mean Latency Histogram", r"Latency ($\mu$s)", "Frequency", "mean_hist.png")
+plot_histogram(stdev_latencies, "Standard Deviation Latency Histogram", r"Latency ($\mu$s)", "Frequency", "stdev_hist.png")
+plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram", r"Latency ($\mu$s)", "Frequency", "percentile_99_99_hist.png")
+plot_histogram(min_latencies, "Minimum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "min_hist.png")
+plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "max_hist.png")
