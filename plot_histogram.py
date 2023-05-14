@@ -62,3 +62,7 @@ plot_histogram(stdev_latencies, "Standard Deviation Latency Histogram", r"Latenc
 plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram", r"Latency ($\mu$s)", "Frequency", "percentile_99_99_hist.png")
 plot_histogram(min_latencies, "Minimum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "min_hist.png")
 plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "max_hist.png")
+
+# Add these lines at the end of the script
+for plot_name in ["mean_hist.png", "median_hist.png", "stdev_hist.png", "percentile_99_99_hist.png", "min_hist.png", "max_hist.png"]:
+    print(f"Checking existence of {plot_name}: {os.path.exists(plot_name)}")
