@@ -147,7 +147,9 @@ if __name__ == '__main__':
         send_gpt4 = False
 
     if build():
-        asyncio.create_task(run_server_and_client())
+        # this line causes the crash described in prompt.txt
+        # asyncio.create_task(run_server_and_client())
+        pass
 
     if send_gpt4:
         os.chdir("/home/conor/git/uring_server")
