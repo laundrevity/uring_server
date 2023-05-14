@@ -7,10 +7,39 @@ import traceback
 import openai
 import shutil
 import glob
+import time
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 script_folder_path = os.path.dirname(os.path.realpath(__file__))
 build_folder_path = os.path.join(script_folder_path, "build")
+
+def run_perf_test(server_binary, client_binary, num_clients, num_messages):
+    # Run the server
+    server_process = subprocess.Popen([server_binary, "1234"])
+
+    # Give the server a moment to start listening
+    time.sleep(1)
+
+    # Run the client
+    client_process = subprocess.run([client_binary, "127.0.0.1", "1234", str(num_clients), str(num_messages)], capture_output=True)
+
+    # Print client output, if any
+    if client_process.stdout:
+        print(f"Client Output:\n{client_process.stdout.decode('utf-8')}")
+    if client_process.stderr:
+        print(f"Client Error Output:\n{client_process.stderr.decode('utf-8')}")
+
+    # Run the plot_histogram.py script
+    histogram_process = subprocess.run(["python3", "plot_histogram.py", str(num_clients)], capture_output=True)
+
+    # Print histogram script output, if any
+    if histogram_process.stdout:
+        print(f"Histogram Output:\n{histogram_process.stdout.decode('utf-8')}")
+    if histogram_process.stderr:
+        print(f"Histogram Error Output:\n{histogram_process.stderr.decode('utf-8')}")
+
+    # Terminate the server process
+    server_process.terminate()
 
 
 def git_push(build_successful):
@@ -119,6 +148,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     build_success = build()
+
+    if build_success:
+        run_perf_test(os.path.join(build_folder_path, args.server),
+                    os.path.join(build_folder_path, args.client),
+                    100, 1005)
 
     if args.push and build_success:
         git_push(True)

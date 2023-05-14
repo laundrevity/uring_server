@@ -21,6 +21,18 @@ for i in range(num_clients):
         latencies = [int(line) for line in file.readlines()]
         all_latencies[i] = latencies
 
+def print_statistics(stat, stat_name):
+    mean = np.mean(stat)
+    std_dev = np.std(stat)
+    median = np.median(stat)
+    tail = np.percentile(stat, 95)
+
+    print(f"{stat_name}")
+    print(f"  Mean: {mean:.2f}")
+    print(f"  Standard Deviation: {std_dev:.2f}")
+    print(f"  Median: {median:.2f}")
+    print(f"  95th percentile (tail latency): {tail:.2f}\n")
+
 def plot_histogram(data, title, xlabel, ylabel, filename):
     plt.hist(data, bins='auto', edgecolor='black', alpha=0.7, density=True)
     plt.xlabel(xlabel)
@@ -36,6 +48,13 @@ stdev_latencies = [np.std(np.array(all_latencies[i])) for i in all_latencies]
 percentile_99_99_latencies = [np.percentile(np.array(all_latencies[i]), 99.99) for i in all_latencies]
 min_latencies = [np.min(np.array(all_latencies[i])) for i in all_latencies]
 max_latencies = [np.max(np.array(all_latencies[i])) for i in all_latencies]
+
+print_statistics(median_latencies, "Median Latencies Statistics")
+print_statistics(mean_latencies, "Mean Latencies Statistics")
+print_statistics(stdev_latencies, "Standard Deviation Latencies Statistics")
+print_statistics(percentile_99_99_latencies, "99.99th Percentile Latencies Statistics")
+print_statistics(min_latencies, "Minimum Latencies Statistics")
+print_statistics(max_latencies, "Maximum Latencies Statistics")
 
 plot_histogram(median_latencies, "Median Latency Histogram", r"Latency ($\mu$s)", "Frequency", "median_hist.png")
 plot_histogram(mean_latencies, "Mean Latency Histogram", r"Latency ($\mu$s)", "Frequency", "mean_hist.png")

@@ -131,7 +131,7 @@ void client(int client_id, const char* ip, int port, int num_messages,LatencySta
   close(sockfd);
 
   // Output raw latencies to a text file
-  std::ofstream latency_data_file("latency_data_client_" + std::to_string(client_id) + ".txt");
+  std::ofstream latency_data_file("build/latency_data_client_" + std::to_string(client_id) + ".txt");
   for (const auto& latency : latencies) {
     latency_data_file << latency << '\n';
   }
