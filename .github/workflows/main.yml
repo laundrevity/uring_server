@@ -37,9 +37,9 @@ jobs:
       with:
         name: histogram-plots
         path: |
-          mean_hist.png
-          median_hist.png
-          stdev_hist.png
-          percentile_99_99_hist.png
-          min_hist.png
-          max_hist.png
+          build/mean_hist.png
+          build/median_hist.png
+          build/stdev_hist.png
+          build/percentile_99_99_hist.png
+          build/min_hist.png
+          build/max_hist.png
