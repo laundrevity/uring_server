@@ -12,8 +12,8 @@ num_clients = int(sys.argv[1])
 
 # Check if running on CI/CD or local environment
 is_ci_cd = os.environ.get("GITHUB_ACTIONS", "false") == "true"
-data_file_prefix = "build/" if not is_ci_cd else ""
-plot_file_prefix = "" if not is_ci_cd else "build/"
+data_file_prefix = "build/"
+plot_file_prefix = "build/"
 
 all_latencies = {}
 
