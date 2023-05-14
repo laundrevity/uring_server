@@ -1,0 +1,11 @@
+When we run the server and the client, the effect is that the server goes in an infinite loop of 
+
+Accepted connection (fd 5)
+
+There are 3 main problems:
+
+1. Why is the server re-using the same fd, rather than associating new ones to each client?
+2. Why isn't the server sending messages to clients and allowing possibility of disconenct? Server is holding clients hostage.
+3. Why isn't the server supporting multiple concurrent connections?
+
+Recall that our goal is to have a multi-client benchmark for our client-server architecture using io_uring. Please describe the changes we should make to fix these problems.

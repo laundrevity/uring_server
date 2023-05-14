@@ -4,7 +4,39 @@ import subprocess
 import datetime
 import traceback
 import openai
+import shutil
+import glob
 openai.api_key = os.getenv('OPENAI_API_KEY')
+
+
+
+def git_push(build_successful):
+    os.chdir("/home/conor/git/uring_server")
+    if build_successful:
+        try:
+            files_to_commit = ['main.py', 'server.cpp', 'client.cpp', 'CMakeLists.txt', 'prompt.txt']
+
+            for file_name in files_to_commit:
+                subprocess.run(['git', 'add', file_name], check=True)
+
+            commit_message = f"Update {', '.join(files_to_commit)} (automated commit)"
+            subprocess.run(['git', 'commit', '-m', commit_message], check=True)
+            subprocess.run(['git', 'push'], check=True)
+
+        except Exception as e:
+            print(f"Error while committing and pushing to Git: {e}")
+            formatted_traceback = traceback.format_exc()
+            print(f"Traceback:\n{formatted_traceback}")
+
+
+def archive_responses():
+    response_files = sorted(glob.glob("response_*.md"), reverse=True)
+    if not os.path.exists('archives'):
+        os.mkdir('archives')
+
+    for response_file in response_files[1:]:
+        shutil.move(response_file, f"archives/{response_file}")
+
 
 def get_file_content(file_path: str):
     with open(file_path, 'r') as f:
@@ -15,7 +47,7 @@ def write_source_code():
     uname_output = subprocess.run(['uname', '-a'], capture_output=True, text=True).stdout.strip()
 
     state_content = f"{uname_output}\n"
-    os.chdir("/home/conor/sandbox/uring")
+    os.chdir("/home/conor/git/uring_server")
     print(os.getcwd())
 
     for file_name in os.listdir('.'):
@@ -36,7 +68,7 @@ def write_state_file(build_successful: bool, server_output_msg: str, client_outp
     state_content += f"Server output messages:\n{server_output_msg}\n\n"
     state_content += f"Client output messages:\n{client_output_msg}\n\n"
 
-    os.chdir("/home/conor/sandbox/uring")
+    os.chdir("/home/conor/git/uring_server")
     with open(f"state.txt", "a") as f:
         f.write(state_content)
 
@@ -48,7 +80,7 @@ def build():
 
         os.chdir("build")
 
-        command = ["cmake", "..", "-DCMAKE_BUILD_TYPE=RelWithDebInfo"]
+        command = ["cmake", "..", "-DCMAKE_BUILD_TYPE=Debug"]
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
         command = ["cmake", "--build", "."]  # Corrected the build command
@@ -58,6 +90,10 @@ def build():
         client_output_msg = f"stdout:\n{result2.stdout}\nstderr:\n{result2.stderr}"
 
         build_successful = result.returncode == 0 and result2.returncode == 0
+
+        if build_successful:
+            git_push(True)
+            archive_responses()
 
         write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
@@ -79,7 +115,7 @@ if __name__ == '__main__':
     build()
 
     if send_gpt4:
-        os.chdir("/home/conor/sandbox/uring")
+        os.chdir("/home/conor/git/uring_server")
         prompt = open('prompt.txt').read()
         state = open('state.txt').read()
         messages = [
@@ -103,7 +139,7 @@ if __name__ == '__main__':
         answer = ''
         timestamp = datetime.datetime.now().strftime('%H_%M_%S')
         response_filename = f"response_{timestamp}.md"
-
+ 
         with open(response_filename, "w") as response_file:
             for chunk in response:
                 try:
