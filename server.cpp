@@ -231,7 +231,6 @@ int main(int argc, char *argv[])
 				}
 			}
 
-
 			ret = io_uring_wait_cqe(&ring, &cqe);
 			if (ret < 0)
 			{
@@ -399,12 +398,18 @@ int main(int argc, char *argv[])
 				}
 
 				active_fds.emplace(fd);
-
 				time_write_fds.emplace(fd, socket_data_t{fd, 0});
 
-				io_uring_sqe *next_sqe = io_uring_get_sqe(&ring);
-				io_uring_prep_accept(next_sqe, listen_fd, nullptr, nullptr, 0);
-				io_uring_sqe_set_data(next_sqe, &accept_completion);
+				read_completion_t *read_ptr = new read_completion_t{};
+				read_ptr->fd = fd;
+				read_ptr->iov.iov_base = malloc(BUF_SIZE);
+				read_ptr->iov.iov_len = BUF_SIZE;
+				read_ptr->write_in_progress = 0;
+
+				io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+				io_uring_prep_readv(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
+				io_uring_sqe_set_data(sqe, read_ptr);
+
 				io_uring_submit(&ring);
 			}
 
