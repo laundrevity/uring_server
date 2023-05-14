@@ -2,7 +2,6 @@
 #define _GNU_SOURCE
 #endif
 #include <stdio.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -20,8 +19,8 @@
 #include <system_error>
 #include <iostream>
 
-#define QUEUE_DEPTH 2048
-#define BUF_SIZE 100
+#define QUEUE_DEPTH 32
+#define BUF_SIZE 4096
 
 enum class Types
 {
@@ -45,6 +44,7 @@ struct read_completion_t : my_completion_data_t
 	}
 	int fd;
 	iovec iov;
+	char buffer[BUF_SIZE];
 	int write_in_progress;
 };
 
@@ -71,7 +71,7 @@ struct time_write_completion_t : my_completion_data_t
 		this->type = Types::TimeWriteCompletion;
 	}
 	iovec iov;
-	int64_t timestamp;
+	char buffer[BUF_SIZE];
 	int fd;
 	int writes_in_progress; // delete when 0
 };
@@ -103,9 +103,6 @@ static int set_socket_nonblocking(int fd)
 
 int main(int argc, char *argv[])
 {
-	// Ignore SIGPIPE signal
-	signal(SIGPIPE, SIG_IGN);
-
 	if (argc != 2)
 	{
 		fprintf(stderr, "Usage: %s <port>\n", argv[0]);
@@ -195,8 +192,6 @@ int main(int argc, char *argv[])
 	for (;;)
 	{
 		io_uring_cqe *cqe;
-		bool seen_cqe = false;
-
 		int ret = io_uring_peek_cqe(&ring, &cqe);
 		if (ret < 0 && ret != -EAGAIN)
 		{
@@ -217,20 +212,35 @@ int main(int argc, char *argv[])
 					time_write_completion_t *ptr = new time_write_completion_t{};
 					ptr->writes_in_progress = 1;
 					ptr->fd = fd;
-					ptr->timestamp = t1.time_since_epoch().count();
 
-					ptr->iov.iov_base = &ptr->timestamp;	   // Remove ptr->buffer assignment
-					ptr->iov.iov_len = sizeof(ptr->timestamp); // Update iov_len
+					if (auto [end_ptr, ec] = std::to_chars(ptr->buffer, ptr->buffer + BUF_SIZE, t1.time_since_epoch().count());
+						ec == std::errc())
+					{
+						// all good
+						ptr->iov.iov_base = ptr->buffer;
+						size_t size = strlen("\n");
+						strncpy(end_ptr, "\n", size);
+						end_ptr += size;
+						ptr->iov.iov_len = end_ptr - ptr->buffer;
+						io_uring_prep_writev(sqe, fd, &ptr->iov, 1, 0);
 
-					size_t timestamp_size = sizeof(int64_t);
-					std::cout << "Sending timestamp with " << timestamp_size << " bytes" << std::endl;
+						io_uring_sqe_set_data(sqe, ptr);
 
-					io_uring_prep_writev(sqe, fd, &ptr->iov, 1, 0);
-					io_uring_submit(&ring); // submit prepared SQE to the io_uring
-					continue;
+						++socket_data.writes_in_progress;
+						printf("increased writes in progress to (%d) (fd %d)\n", socket_data.writes_in_progress, socket_data.fd);
+						io_uring_submit(&ring);
+					}
+					else
+					{
+						std::cout << std::make_error_code(ec).message() << '\n';
+					}
 				}
 			}
 
+			if (sent)
+			{
+				continue;
+			}
 			ret = io_uring_wait_cqe(&ring, &cqe);
 			if (ret < 0)
 			{
@@ -240,210 +250,143 @@ int main(int argc, char *argv[])
 		}
 
 		my_completion_data_t *completion = (my_completion_data_t *)io_uring_cqe_get_data(cqe);
-
-		// only process the completion event if completion is not a null pointer
-		if (completion)
+		if (cqe->res < 0)
 		{
-			if (cqe->res < 0)
-			{
-				// Error handling, logging the error message
-				std::string error_message = "Async operation failed, error: ";
-				error_message += strerror(-cqe->res);
-				std::cerr << "[Error] " << error_message << std::endl;
+			fprintf(stderr, "Async operation failed: %s\n", strerror(-cqe->res));
+			io_uring_cqe_seen(&ring, cqe);
+			continue;
+		}
 
-				if (-cqe->res == EPIPE)
+		switch (completion->type)
+		{
+		case Types::ReadCompletion:
+		{
+			read_completion_t *read_ptr = static_cast<read_completion_t *>(completion);
+			// This is a read or write event
+			if (!read_ptr->write_in_progress)
+			{
+				// read
+				size_t bytes = cqe->res;
+				if (bytes == 0)
 				{
-					switch (completion->type)
-					{
-					case Types::EchoCompletion:
-					{
-						echo_write_completion_t *echo_ptr = static_cast<echo_write_completion_t *>(completion);
-						printf("Client disconnected (fd %d)\n", echo_ptr->fd);
-
-						// Remove the client's file descriptor from your active_fds set
-						active_fds.erase(echo_ptr->fd);
-
-						// Close the socket and remove the associated resources
-						close(echo_ptr->fd);
-					}
-					break;
-					case Types::TimeWriteCompletion:
-					{
-						time_write_completion_t *write_ptr = static_cast<time_write_completion_t *>(completion);
-						printf("Client disconnected (fd %d)\n", write_ptr->fd);
-
-						// Remove the client's file descriptor from your active_fds set
-						active_fds.erase(write_ptr->fd);
-
-						// Remove the client's file descriptor from your time_write_fds map
-						time_write_fds.erase(write_ptr->fd);
-
-						// Close the socket
-						close(write_ptr->fd);
-
-						seen_cqe = true;
-					}
-					break;
-					default:
-						break;
-					}
-				}
-
-				io_uring_cqe_seen(&ring, cqe);
-				continue;
-			}
-
-			switch (completion->type)
-			{
-			case Types::ReadCompletion:
-			{
-				read_completion_t *read_ptr = static_cast<read_completion_t *>(completion);
-				// This is a read or write event
-				if (!read_ptr->write_in_progress)
-				{
-					// read
-					size_t bytes = cqe->res;
-					if (bytes <= 0)
-					{
-						if (cqe->res == -ECONNRESET)
-						{
-							printf("Client disconnected (fd %d)\n", read_ptr->fd);
-						}
-						else
-						{
-							printf("Unknown error (fd %d)\n", read_ptr->fd);
-						}
-						active_fds.erase(read_ptr->fd);
-						close(read_ptr->fd);
-						seen_cqe = true;
-						delete read_ptr;
-					}
-					else
-					{
-						printf("read (fd %d)\n", read_ptr->fd);
-
-						read_ptr->write_in_progress = 1;
-						// Echo the received data
-						for (const int fd : active_fds)
-						{
-							if (fd == read_ptr->fd)
-							{
-								continue;
-							}
-							io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-							io_uring_prep_writev(sqe, fd, &read_ptr->iov, 1, 0);
-							echo_write_completion_t *echo_ptr = new echo_write_completion_t;
-							echo_ptr->fd = fd;
-							io_uring_sqe_set_data(sqe, echo_ptr);
-
-							io_uring_submit(&ring);
-						}
-						io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-						io_uring_prep_writev(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
-						io_uring_sqe_set_data(sqe, read_ptr);
-
-						io_uring_submit(&ring);
-					}
+					// Connection closed
+					printf("Connection closed (fd %d)\n", read_ptr->fd);
+					active_fds.erase(read_ptr->fd);
+					close(read_ptr->fd);
+					delete read_ptr;
 				}
 				else
 				{
-					// write
-					size_t bytes = cqe->res;
-					if (bytes <= 0)
-					{
-						if (cqe->res == -ECONNRESET)
-						{
-							printf("Client disconnected (fd %d)\n", read_ptr->fd);
-						}
-						else
-						{
-							printf("Unknown error (fd %d)\n", read_ptr->fd);
-						}
-						active_fds.erase(read_ptr->fd);
-						close(read_ptr->fd);
-						delete read_ptr;
-						seen_cqe = true;
-					}
-					else
-					{
-						printf("write completed (fd %d)\n", read_ptr->fd);
-						// setup new read
-						read_ptr->write_in_progress = 0;
+					printf("read (fd %d)\n", read_ptr->fd);
 
+					read_ptr->write_in_progress = 1;
+					// Echo the received data
+					for (const int fd : active_fds)
+					{
+						if (fd == read_ptr->fd)
+						{
+							continue;
+						}
 						io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+						io_uring_prep_writev(sqe, fd, &read_ptr->iov, 1, 0);
+						echo_write_completion_t *echo_ptr = new echo_write_completion_t;
+						echo_ptr->fd = fd;
+						io_uring_sqe_set_data(sqe, echo_ptr);
 
-						io_uring_prep_readv(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
-						io_uring_sqe_set_data(sqe, read_ptr);
 						io_uring_submit(&ring);
 					}
+					io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+					io_uring_prep_writev(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
+					io_uring_sqe_set_data(sqe, read_ptr);
+
+					io_uring_submit(&ring);
 				}
 			}
-			break;
-			case Types::EchoCompletion:
+			else
 			{
-				echo_write_completion_t *echo_ptr = (echo_write_completion_t *)completion;
-				delete echo_ptr;
-			}
-			break;
-			case Types::AcceptCompletion:
-			{
-				// This is an accept event
-				int fd = cqe->res;
-				printf("Accepted connection (fd %d)\n", fd);
-
-				if (set_socket_nonblocking(fd) < 0)
+				// write
+				size_t bytes = cqe->res;
+				if (bytes == 0)
 				{
-					close(fd);
-					break;
+					// Connection closed
+					printf("Connection closed (fd %d)\n", read_ptr->fd);
+					active_fds.erase(read_ptr->fd);
+					close(read_ptr->fd);
+					delete read_ptr;
 				}
-
-				active_fds.emplace(fd);
-				time_write_fds.emplace(fd, socket_data_t{fd, 0});
-
-				read_completion_t *read_ptr = new read_completion_t{};
-				read_ptr->fd = fd;
-				read_ptr->iov.iov_base = malloc(BUF_SIZE);
-				read_ptr->iov.iov_len = BUF_SIZE;
-				read_ptr->write_in_progress = 0;
-
-				io_uring_sqe *sqe = io_uring_get_sqe(&ring);
-				io_uring_prep_readv(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
-				io_uring_sqe_set_data(sqe, read_ptr);
-
-				io_uring_submit(&ring);
-
-				// reissue the accept request
-				sqe = io_uring_get_sqe(&ring);
-				io_uring_prep_accept(sqe, listen_fd, NULL, NULL, 0);
-				io_uring_sqe_set_data(sqe, &accept_completion);
-				io_uring_submit(&ring);
-			}
-
-			break;
-			case Types::TimeWriteCompletion:
-			{
-				time_write_completion_t *write_ptr = static_cast<time_write_completion_t *>(completion);
-				// write completed
-				--write_ptr->writes_in_progress;
-				if (!write_ptr->writes_in_progress)
+				else
 				{
-					auto it = time_write_fds.find(write_ptr->fd);
-					if (it != time_write_fds.end())
-					{
-						--it->second.writes_in_progress;
-						// printf("reduced writes in progress to (%d) (fd %d)\n", it->second.writes_in_progress, it->second.fd);
-					}
-					delete write_ptr;
+					printf("write completed (fd %d)\n", read_ptr->fd);
+					// setup new read
+					read_ptr->write_in_progress = 0;
+					io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+					io_uring_prep_readv(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
+					io_uring_sqe_set_data(sqe, read_ptr);
+					io_uring_submit(&ring);
 				}
-			}
-			break;
-			}
-
-			if (!completion)
-			{
-				io_uring_cqe_seen(&ring, cqe);
 			}
 		}
+		break;
+		case Types::EchoCompletion:
+		{
+			echo_write_completion_t *echo_ptr = (echo_write_completion_t *)completion;
+			delete echo_ptr;
+		}
+		break;
+		case Types::AcceptCompletion:
+		{
+			// This is an accept event
+			int fd = cqe->res;
+			printf("Accepted connection (fd %d)\n", fd);
+
+			if (set_socket_nonblocking(fd) < 0)
+			{
+				close(fd);
+				break;
+			}
+
+			read_completion_t *read_ptr = new read_completion_t;
+			read_ptr->iov.iov_base = read_ptr->buffer;
+			read_ptr->iov.iov_len = BUF_SIZE;
+			read_ptr->fd = fd;
+
+			struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+			io_uring_prep_readv(sqe, read_ptr->fd, &read_ptr->iov, 1, 0);
+			io_uring_sqe_set_data(sqe, read_ptr);
+
+			active_fds.emplace(read_ptr->fd);
+			auto &time_write = time_write_fds.try_emplace(fd).first->second;
+			time_write.fd = fd;
+
+			// Prepare for the next connection
+			sqe = io_uring_get_sqe(&ring);
+			io_uring_prep_accept(sqe, listen_fd, nullptr, nullptr, 0);
+
+			io_uring_sqe_set_data(sqe, &accept_completion);
+
+			io_uring_submit(&ring);
+		}
+		break;
+		case Types::TimeWriteCompletion:
+		{
+			time_write_completion_t *write_ptr = static_cast<time_write_completion_t *>(completion);
+			// write completed
+			--write_ptr->writes_in_progress;
+			if (!write_ptr->writes_in_progress)
+			{
+				auto it = time_write_fds.find(write_ptr->fd);
+				if (it != time_write_fds.end())
+				{
+					--it->second.writes_in_progress;
+					printf("reduced writes in progress to (%d) (fd %d)\n", it->second.writes_in_progress, it->second.fd);
+				}
+				delete write_ptr;
+			}
+		}
+		break;
+		}
+
+		io_uring_cqe_seen(&ring, cqe);
 	}
 
 	io_uring_queue_exit(&ring);
