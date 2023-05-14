@@ -25,6 +25,13 @@ jobs:
       env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
+    - name: Check working directory
+      run: |
+        echo "Current working directory:"
+        pwd
+        echo "Directory contents:"
+        ls
+
     - name: Archive histogram plots
       uses: actions/upload-artifact@v2
       with:
