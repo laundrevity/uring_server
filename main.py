@@ -109,10 +109,9 @@ def build():
         if build_successful:
             git_push(True)
             archive_responses()
-            run_server_and_client()
+            # run_server_and_client()
 
-        else:
-            write_state_file(build_successful, server_output_msg, client_output_msg, command)
+        write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
     except Exception as e:
         print(f"Error: {e}")
