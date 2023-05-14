@@ -1,3 +1,3 @@
-Why isn't our main.py working? It should run the server and the clients with the specified arguments and log their stdout/stderr, but it is hanging indefinitely.
+Why isn't our main.py working? It should run the server and the clients with the specified arguments and log their stdout/stderr, but it is hanging indefinitely when I uncomment the line run_server_and_client()
 
 When I build the binaries and run them with those arguments myself, it works fine. What is the problem?
