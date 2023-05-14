@@ -1,3 +1,18 @@
 Why isn't our main.py working? It should run the server and the clients with the specified arguments and log their stdout/stderr, but it is hanging indefinitely when I uncomment the line run_server_and_client()
 
-When I build the binaries and run them with those arguments myself, it works fine. What is the problem?
+When I build the binaries and run them with those arguments myself, it works fine. What is the problem? Recall this is our current run_server_and_client:
+def run_server_and_client():
+    server_command = ["./build/server", "1234"]
+    client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
+
+    server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    client_stdout, client_stderr = client_process.communicate()
+    server_stdout, server_stderr = server_process.communicate()
+
+    server_output_msg = f"stdout:\n{server_stdout}\nstderr:\n{server_stderr}"
+    client_output_msg = f"stdout:\n{client_stdout}\nstderr:\n{client_stderr}"
+
+    command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
+    write_state_file(True, server_output_msg, client_output_msg, command)
