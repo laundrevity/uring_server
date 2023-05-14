@@ -37,9 +37,9 @@ jobs:
       with:
         name: histogram-plots
         path: |
-          build/mean_hist.png
-          build/median_hist.png
-          build/stdev_hist.png
-          build/percentile_99_99_hist.png
-          build/min_hist.png
-          build/max_hist.png
+          ${{ github.workspace }}/build/mean_hist.png
+          ${{ github.workspace }}/build/median_hist.png
+          ${{ github.workspace }}/build/stdev_hist.png
+          ${{ github.workspace }}/build/percentile_99_99_hist.png
+          ${{ github.workspace }}/build/min_hist.png
+          ${{ github.workspace }}/build/max_hist.png

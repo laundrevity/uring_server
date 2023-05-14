@@ -9,11 +9,12 @@ if len(sys.argv) != 2:
     sys.exit(1)
 
 num_clients = int(sys.argv[1])
+script_folder_path = os.path.dirname(os.path.realpath(__file__))
 
 # Check if running on CI/CD or local environment
 is_ci_cd = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 data_file_prefix = "build/"
-plot_file_prefix = "build/"
+plot_file_prefix = os.path.join(script_folder_path, "build")
 
 all_latencies = {}
 
@@ -67,7 +68,7 @@ plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", 
 
 if is_ci_cd:
     plot_files = [
-        os.path.join("build", plot_name)
+        os.path.join(script_folder_path, "build", plot_name)
         for plot_name in [
             "mean_hist.png",
             "median_hist.png",
