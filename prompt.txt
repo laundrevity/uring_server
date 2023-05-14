@@ -6,6 +6,10 @@ def run_server_and_client():
     client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
 
     server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    # Give the server some time to start properly
+    time.sleep(2)
+    
     client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
     client_stdout, client_stderr = client_process.communicate()
@@ -16,3 +20,4 @@ def run_server_and_client():
 
     command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
     write_state_file(True, server_output_msg, client_output_msg, command)
+ 
