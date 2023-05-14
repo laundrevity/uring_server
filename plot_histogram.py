@@ -63,6 +63,27 @@ plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram
 plot_histogram(min_latencies, "Minimum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "min_hist.png")
 plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "max_hist.png")
 
-# Add these lines at the end of the script
-for plot_name in ["mean_hist.png", "median_hist.png", "stdev_hist.png", "percentile_99_99_hist.png", "min_hist.png", "max_hist.png"]:
+if is_ci_cd:
+    plot_files = [
+        os.path.join("build", plot_name)
+        for plot_name in [
+            "mean_hist.png",
+            "median_hist.png",
+            "stdev_hist.png",
+            "percentile_99_99_hist.png",
+            "min_hist.png",
+            "max_hist.png",
+        ]
+    ]
+else:
+    plot_files = [
+        "mean_hist.png",
+        "median_hist.png",
+        "stdev_hist.png",
+        "percentile_99_99_hist.png",
+        "min_hist.png",
+        "max_hist.png",
+    ]
+
+for plot_name in plot_files:
     print(f"Checking existence of {plot_name}: {os.path.exists(plot_name)}")
