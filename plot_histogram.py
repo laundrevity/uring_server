@@ -1,5 +1,6 @@
 import sys
 import os
+import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -12,6 +13,7 @@ num_clients = int(sys.argv[1])
 # Check if running on CI/CD or local environment
 is_ci_cd = os.environ.get("GITHUB_ACTIONS", "false") == "true"
 data_file_prefix = "build/" if not is_ci_cd else ""
+plot_file_prefix = "" if not is_ci_cd else "build/"
 
 all_latencies = {}
 
@@ -37,7 +39,7 @@ def plot_histogram(data, title, xlabel, ylabel, filename):
     plt.hist(data, bins='auto', edgecolor='black', alpha=0.7, density=True)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.title(title)
+    plt.title(f'[{datetime.datetime.now()}] {title}')
     plt.grid(True)
     plt.savefig(filename)
     plt.clf()
@@ -56,12 +58,12 @@ print_statistics(percentile_99_99_latencies, "99.99th Percentile Latencies Stati
 print_statistics(min_latencies, "Minimum Latencies Statistics")
 print_statistics(max_latencies, "Maximum Latencies Statistics")
 
-plot_histogram(median_latencies, "Median Latency Histogram", r"Latency ($\mu$s)", "Frequency", "median_hist.png")
-plot_histogram(mean_latencies, "Mean Latency Histogram", r"Latency ($\mu$s)", "Frequency", "mean_hist.png")
-plot_histogram(stdev_latencies, "Standard Deviation Latency Histogram", r"Latency ($\mu$s)", "Frequency", "stdev_hist.png")
-plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram", r"Latency ($\mu$s)", "Frequency", "percentile_99_99_hist.png")
-plot_histogram(min_latencies, "Minimum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "min_hist.png")
-plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", "Frequency", "max_hist.png")
+plot_histogram(median_latencies, "Median Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}median_hist.png")
+plot_histogram(mean_latencies, "Mean Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}mean_hist.png")
+plot_histogram(stdev_latencies, "Standard Deviation Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}stdev_hist.png")
+plot_histogram(percentile_99_99_latencies, "99.99th Percentile Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}percentile_99_99_hist.png")
+plot_histogram(min_latencies, "Minimum Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}min_hist.png")
+plot_histogram(max_latencies, "Maximum Latency Histogram", r"Latency ($\mu$s)", "Frequency", f"{plot_file_prefix}max_hist.png")
 
 if is_ci_cd:
     plot_files = [
