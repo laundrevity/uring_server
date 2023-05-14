@@ -150,7 +150,8 @@ if __name__ == '__main__':
     else:
         send_gpt4 = False
 
-    asyncio.run(main_async())
+    # asyncio.run(main_async())
+    build()
 
     if send_gpt4:
         os.chdir("/home/conor/git/uring_server")
