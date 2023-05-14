@@ -1,18 +1,20 @@
 import os
 import sys
 import subprocess
+import argparse
 import datetime
 import traceback
 import openai
 import shutil
 import glob
-import asyncio
-import time
 openai.api_key = os.getenv('OPENAI_API_KEY')
+
+script_folder_path = os.path.dirname(os.path.realpath(__file__))
+build_folder_path = os.path.join(script_folder_path, "build")
 
 
 def git_push(build_successful):
-    os.chdir("/home/conor/git/uring_server")
+    os.chdir(script_folder_path)
     if build_successful:
         try:
             files_to_commit = ['main.py', 'server.cpp', 'client.cpp', 'CMakeLists.txt', 'prompt.txt']
@@ -28,7 +30,6 @@ def git_push(build_successful):
             print(f"Error while committing and pushing to Git: {e}")
             formatted_traceback = traceback.format_exc()
             print(f"Traceback:\n{formatted_traceback}")
-
 
 def archive_responses():
     response_files = sorted(glob.glob("response_*.md"), reverse=True)
@@ -47,8 +48,8 @@ def write_source_code():
     current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     uname_output = subprocess.run(['uname', '-a'], capture_output=True, text=True).stdout.strip()
 
-    state_content = f"{uname_output}\n"
-    os.chdir("/home/conor/git/uring_server")
+    state_content = f"{current_datetime}\n{uname_output}\n"
+    os.chdir(script_folder_path)
     print(os.getcwd())
 
     for file_name in os.listdir('.'):
@@ -61,7 +62,7 @@ def write_source_code():
         f.write(state_content)
 
 
-def write_state_file(build_successful: bool, server_output_msg: str, client_output_msg: str, command: str):
+def write_state_file(server_output_msg: str, client_output_msg: str, command: str):
     write_source_code()
     state_content = ""
     state_content += f"Command used: {command}\n\n"
@@ -69,37 +70,10 @@ def write_state_file(build_successful: bool, server_output_msg: str, client_outp
     state_content += f"Server output messages:\n{server_output_msg}\n\n"
     state_content += f"Client output messages:\n{client_output_msg}\n\n"
 
-    os.chdir("/home/conor/git/uring_server")
+    os.chdir(script_folder_path)
     with open(f"state.txt", "a") as f:
         f.write(state_content)
 
-async def run_process(cmd):
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True
-    )
-    stdout, stderr = await process.communicate()
-    return stdout, stderr
-
-async def run_server_and_client():
-    server_command = ["./build/server", "1234"]
-    client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
-
-    server_process_task = asyncio.ensure_future(client_command)
-    
-    await asyncio.sleep(2)
-    
-    client_stdout, client_stderr = await run_process(client_command)
-    server_stdout, server_stderr = await server_process_task
-
-    server_output_msg = f"stdout:\n{server_stdout}\nstderr:\n{server_stderr}"
-    client_output_msg = f"stdout:\n{client_stdout}\nstderr:\n{client_stderr}"
-
-    command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
-    write_state_file(True, server_output_msg, client_output_msg, command)
- 
 def build() -> bool:
     try:
         if not os.path.exists('build'):
@@ -120,41 +94,37 @@ def build() -> bool:
         build_successful = result.returncode == 0 and result2.returncode == 0
 
         if build_successful:
-            git_push(True)
             archive_responses()
-            # run_server_and_client()
-        # else:
-            # write_state_file(build_successful, server_output_msg, client_output_msg, command)
-
-        write_state_file(build_successful, server_output_msg, client_output_msg, command)
+            
+        write_state_file(server_output_msg, client_output_msg, command)
 
         return build_successful
 
     except Exception as e:
         print(f"Error: {e}")
         formatted_traceback = traceback.format_exc()
-        write_state_file(False, f"Traceback:\n{formatted_traceback}", "", command)
+        write_state_file(f"Traceback:\n{formatted_traceback}", "", command)
         return False
-
-async def main_async():
-    if build():
-        await run_server_and_client()
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print(f"Usage: python main.py <server-binary> <client-binary> [--send]")
+        print(f"Usage: python main.py <server-binary> <client-binary> [--send] [--push]")
         sys.exit(1)
 
-    if len(sys.argv) >= 4:
-        send_gpt4 = True
-    else:
-        send_gpt4 = False
+    parser = argparse.ArgumentParser()
+    parser.add_argument("server", help="Server binary target", type=str)
+    parser.add_argument("client", help="Client binary target", type=str)
+    parser.add_argument("--send", help="Send the response to GPT", action="store_true")
+    parser.add_argument("--push", help="Push the code to GitHub on a new branch", action="store_true")
+    args = parser.parse_args()
 
-    # asyncio.run(main_async())
-    build()
+    build_success = build()
 
-    if send_gpt4:
-        os.chdir("/home/conor/git/uring_server")
+    if args.push and build_success:
+        git_push(True)
+
+    if args.send:
+        os.chdir(script_folder_path)
         prompt = open('prompt.txt').read()
         state = open('state.txt').read()
         messages = [

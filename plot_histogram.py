@@ -1,6 +1,11 @@
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+script_folder_path = os.path.dirname(os.path.realpath(__file__))
+build_folder_path = os.path.join(script_folder_path, "build")
+
 
 if len(sys.argv) != 2:
     print("Usage: python plot_histogram.py <Number of Clients>")
@@ -11,7 +16,7 @@ num_clients = int(sys.argv[1])
 all_latencies = {}
 
 for i in range(num_clients):
-    file_name = f"build/latency_data_client_{i+1}.txt"
+    file_name = f"{build_folder_path}/latency_data_client_{i+1}.txt"
     with open(file_name, "r") as file:
         latencies = [int(line) for line in file.readlines()]
         all_latencies[i] = latencies
