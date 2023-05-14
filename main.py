@@ -29,6 +29,9 @@ def run_perf_test(server_binary, client_binary, num_clients, num_messages):
     if client_process.stderr:
         print(f"Client Error Output:\n{client_process.stderr.decode('utf-8')}")
 
+    # Change to the build directory before running the plot_histogram.py script
+    os.chdir(build_folder_path)
+
     # Run the plot_histogram.py script
     histogram_process = subprocess.run(["python3", "plot_histogram.py", str(num_clients)], capture_output=True)
 
