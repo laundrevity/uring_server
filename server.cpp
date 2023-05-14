@@ -400,6 +400,8 @@ int main(int argc, char *argv[])
 
 				active_fds.emplace(fd);
 
+				time_write_fds.emplace(fd, socket_data_t{fd, 0});
+
 				io_uring_sqe *next_sqe = io_uring_get_sqe(&ring);
 				io_uring_prep_accept(next_sqe, listen_fd, nullptr, nullptr, 0);
 				io_uring_sqe_set_data(next_sqe, &accept_completion);
