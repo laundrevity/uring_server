@@ -22,6 +22,8 @@ jobs:
     - name: Build and run the test
       run: |
         python main.py server client
+      env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     - name: Archive histogram plots
       uses: actions/upload-artifact@v2
