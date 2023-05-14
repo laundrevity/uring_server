@@ -1,5 +1,3 @@
-When we run the server and the client, the effect is that the server goes in an infinite loop of 
+Why isn't our main.py working? It should run the server and the clients with the specified arguments and log their stdout/stderr, but it is hanging indefinitely.
 
-Accepted connection (fd 5)
-
-How can we fix it? It should be using a new fd for each connected client, and it should allow all 100 clients to connect simultaneously.
+When I build the binaries and run them with those arguments myself, it works fine. What is the problem?
