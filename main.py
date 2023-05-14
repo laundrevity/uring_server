@@ -30,7 +30,7 @@ def run_perf_test(server_binary, client_binary, num_clients, num_messages):
         print(f"Client Error Output:\n{client_process.stderr.decode('utf-8')}")
 
     # Run the plot_histogram.py script
-    histogram_process = subprocess.run(["python3", "plot_histogram.py", str(num_clients)], capture_output=True)
+    histogram_process = subprocess.run(["python3", "plot_histogram.py", str(num_clients)], capture_output=True, cwd=script_folder_path)
 
     # Print histogram script output, if any
     if histogram_process.stdout:
