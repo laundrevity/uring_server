@@ -86,7 +86,7 @@ def run_server_and_client():
 
     command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
     write_state_file(True, server_output_msg, client_output_msg, command)
-
+ 
 def build():
     try:
         if not os.path.exists('build'):
@@ -111,7 +111,8 @@ def build():
             archive_responses()
             run_server_and_client()
 
-        write_state_file(build_successful, server_output_msg, client_output_msg, command)
+        else:
+            write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
     except Exception as e:
         print(f"Error: {e}")
