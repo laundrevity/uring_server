@@ -9,7 +9,6 @@ import glob
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
 
-
 def git_push(build_successful):
     os.chdir("/home/conor/git/uring_server")
     if build_successful:
@@ -72,6 +71,22 @@ def write_state_file(build_successful: bool, server_output_msg: str, client_outp
     with open(f"state.txt", "a") as f:
         f.write(state_content)
 
+def run_server_and_client():
+    server_command = ["./build/server", "1234"]
+    client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
+
+    server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    client_stdout, client_stderr = client_process.communicate()
+    server_stdout, server_stderr = server_process.communicate()
+
+    server_output_msg = f"stdout:\n{server_stdout}\nstderr:\n{server_stderr}"
+    client_output_msg = f"stdout:\n{client_stdout}\nstderr:\n{client_stderr}"
+
+    command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
+    write_state_file(True, server_output_msg, client_output_msg, command)
+
 def build():
     try:
         if not os.path.exists('build'):
@@ -94,6 +109,7 @@ def build():
         if build_successful:
             git_push(True)
             archive_responses()
+            run_server_and_client()
 
         write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
@@ -139,7 +155,7 @@ if __name__ == '__main__':
         answer = ''
         timestamp = datetime.datetime.now().strftime('%H_%M_%S')
         response_filename = f"response_{timestamp}.md"
- 
+
         with open(response_filename, "w") as response_file:
             for chunk in response:
                 try:
