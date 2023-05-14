@@ -3,20 +3,20 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-script_folder_path = os.path.dirname(os.path.realpath(__file__))
-build_folder_path = os.path.join(script_folder_path, "build")
-
-
 if len(sys.argv) != 2:
     print("Usage: python plot_histogram.py <Number of Clients>")
     sys.exit(1)
 
 num_clients = int(sys.argv[1])
 
+# Check if running on CI/CD or local environment
+is_ci_cd = os.environ.get("GITHUB_ACTIONS", "false") == "true"
+data_file_prefix = "build/" if not is_ci_cd else ""
+
 all_latencies = {}
 
 for i in range(num_clients):
-    file_name = f"{build_folder_path}/latency_data_client_{i+1}.txt"
+    file_name = f"{data_file_prefix}latency_data_client_{i+1}.txt"
     with open(file_name, "r") as file:
         latencies = [int(line) for line in file.readlines()]
         all_latencies[i] = latencies
