@@ -411,6 +411,12 @@ int main(int argc, char *argv[])
 				io_uring_sqe_set_data(sqe, read_ptr);
 
 				io_uring_submit(&ring);
+
+				// reissue the accept request
+				sqe = io_uring_get_sqe(&ring);
+				io_uring_prep_accept(sqe, listen_fd, NULL, NULL, 0);
+				io_uring_sqe_set_data(sqe, &accept_completion);
+				io_uring_submit(&ring);
 			}
 
 			break;
