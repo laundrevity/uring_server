@@ -6,6 +6,7 @@ import traceback
 import openai
 import shutil
 import glob
+import asyncio
 import time
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
@@ -72,19 +73,26 @@ def write_state_file(build_successful: bool, server_output_msg: str, client_outp
     with open(f"state.txt", "a") as f:
         f.write(state_content)
 
-def run_server_and_client():
+async def run_process(cmd):
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+    stdout, stderr = await process.communicate()
+    return stdout, stderr
+
+async def run_server_and_client():
     server_command = ["./build/server", "1234"]
     client_command = ["./build/client", "127.0.0.1", "1234", "100", "1005"]
 
-    server_process = subprocess.Popen(server_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    server_process_task = asyncio.ensure_future(client_command)
     
-    # Give the server some time to start properly
-    time.sleep(2)
+    await asyncio.sleep(2)
     
-    client_process = subprocess.Popen(client_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    client_stdout, client_stderr = client_process.communicate()
-    server_stdout, server_stderr = server_process.communicate()
+    client_stdout, client_stderr = await run_process(client_command)
+    server_stdout, server_stderr = await server_process_task
 
     server_output_msg = f"stdout:\n{server_stdout}\nstderr:\n{server_stderr}"
     client_output_msg = f"stdout:\n{client_stdout}\nstderr:\n{client_stderr}"
@@ -92,7 +100,7 @@ def run_server_and_client():
     command = f"Server command: {' '.join(server_command)}\nClient command: {' '.join(client_command)}"
     write_state_file(True, server_output_msg, client_output_msg, command)
  
-def build():
+def build() -> bool:
     try:
         if not os.path.exists('build'):
             command = ["mkdir", "build"]
@@ -120,10 +128,13 @@ def build():
 
         write_state_file(build_successful, server_output_msg, client_output_msg, command)
 
+        return build_successful
+
     except Exception as e:
         print(f"Error: {e}")
         formatted_traceback = traceback.format_exc()
         write_state_file(False, f"Traceback:\n{formatted_traceback}", "", command)
+        return False
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -135,7 +146,8 @@ if __name__ == '__main__':
     else:
         send_gpt4 = False
 
-    build()
+    if build():
+        asyncio.create_task(run_server_and_client())
 
     if send_gpt4:
         os.chdir("/home/conor/git/uring_server")
