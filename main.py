@@ -199,3 +199,5 @@ if __name__ == '__main__':
                     response_file.flush()  # ensure content is written to file immediately
                 except:
                     pass
+
+        print('\n') # newline for good measure
